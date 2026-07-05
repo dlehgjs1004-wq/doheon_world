@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>관리자 페이지</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header>
+    <h1>관리자 페이지</h1>
+    <a href="/">홈으로</a>
+</header>
+
+<section class="card">
+    <h2>관리자 대시보드</h2>
+    <div class="stats-grid">
+        <div>회원<br><b>{{ stats["users"] }}</b></div>
+        <div>게시글<br><b>{{ stats["posts"] }}</b></div>
+        <div>댓글<br><b>{{ stats["comments"] }}</b></div>
+        <div>공지<br><b>{{ stats["notices"] }}</b></div>
+        <div>신고<br><b>{{ stats["reports"] }}</b></div>
+    </div>
+</section>
+
+<section class="card">
+    <h2>회원 관리</h2>
+    {% for user in users %}
+        <div class="item">
+            ID {{ user["id"] }} /
+            {{ user["email"] }} /
+            {{ user["nickname"] }} /
+            {% if user["is_admin"] == 1 %}관리자{% else %}일반{% endif %} /
+            {% if user["is_banned"] == 1 %}정지됨{% else %}정상{% endif %}
+
+            <br>
+            <a href="/admin/user/ban/{{ user['id'] }}">정지</a>
+            <a href="/admin/user/unban/{{ user['id'] }}">정지 해제</a>
+            <a href="/admin/user/delete/{{ user['id'] }}" onclick="return confirm('정말 삭제할까요?')">삭제</a>
+        </div>
+    {% endfor %}
+</section>
+
+<section class="card">
+    <h2>게시글 관리</h2>
+    {% for post in posts %}
+        <div class="post">
+            <h3>{{ post["title"] }}</h3>
+            <p>{{ post["content"] }}</p>
+            <small>{{ post["nickname"] }} / {{ post["created_at"] }}</small>
+            <br>
+            <a href="/admin/post/delete/{{ post['id'] }}" onclick="return confirm('게시글 삭제?')">삭제</a>
+        </div>
+    {% endfor %}
+</section>
+
+<section class="card">
+    <h2>댓글 관리</h2>
+    {% for comment in comments %}
+        <div class="item">
+            {{ comment["nickname"] }}: {{ comment["content"] }}
+            <a href="/admin/comment/delete/{{ comment['id'] }}">삭제</a>
+        </div>
+    {% endfor %}
+</section>
+
+<section class="card">
+    <h2>공지 관리</h2>
+    {% for notice in notices %}
+        <div class="post">
+            <h3>{{ notice["title"] }}</h3>
+            <p>{{ notice["content"] }}</p>
+            <a href="/admin/notice/delete/{{ notice['id'] }}">삭제</a>
+        </div>
+    {% endfor %}
+</section>
+
+<section class="card">
+    <h2>신고 관리</h2>
+    {% for report in reports %}
+        <div class="item">
+            신고 대상: {{ report["target_type"] }} #{{ report["target_id"] }}<br>
+            이유: {{ report["reason"] }}<br>
+            신고자: {{ report["nickname"] }}<br>
+            시간: {{ report["created_at"] }}
+        </div>
+    {% endfor %}
+</section>
+
+</body>
+</html>

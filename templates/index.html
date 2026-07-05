@@ -11,7 +11,12 @@
     <h1>DOHEON WORLD</h1>
 
     {% if page == "portal" %}
-        <a href="/logout">로그아웃</a>
+        <div>
+            {% if user["is_admin"] == 1 %}
+                <a href="/admin">관리자 페이지</a>
+            {% endif %}
+            <a href="/logout">로그아웃</a>
+        </div>
     {% endif %}
 </header>
 
@@ -19,7 +24,7 @@
 
 <section class="hero">
     <h2>DOHEON WORLD</h2>
-    <p>나만의 실시간 웹 포털</p>
+    <p>실시간 메시지, 게시판, 메모, 관리자 기능이 있는 나만의 웹 포털</p>
 
     <button onclick="showBox('signupBox')">회원가입</button>
     <button onclick="showBox('loginBox')">로그인</button>
@@ -57,13 +62,13 @@ function showBox(id) {
 {% if page == "portal" %}
 
 <section class="card">
-    <h2>{{ user[3] }} 님 환영합니다</h2>
+    <h2>{{ user["nickname"] }} 님 환영합니다</h2>
     <p>원하는 기능을 선택하세요.</p>
 
     <div class="menu-grid">
-        <button onclick="showApp('profileApp')">닉네임 변경</button>
+        <button onclick="showApp('profileApp')">프로필</button>
         <button onclick="showApp('memoApp')">메모장</button>
-        <button onclick="showApp('todoApp')">할 일 목록</button>
+        <button onclick="showApp('todoApp')">할 일</button>
         <button onclick="showApp('boardApp')">게시판</button>
         <button onclick="showApp('chatApp')">실시간 메시지방</button>
         <button onclick="showApp('noticeApp')">공지사항</button>
@@ -74,8 +79,9 @@ function showBox(id) {
 </section>
 
 <section id="profileApp" class="card app hidden">
-    <h2>닉네임 변경</h2>
-    <p>현재 이메일: {{ user[1] }}</p>
+    <h2>프로필</h2>
+    <p>이메일: {{ user["email"] }}</p>
+    <p>권한: {% if user["is_admin"] == 1 %}관리자{% else %}일반 회원{% endif %}</p>
 
     <form action="/profile" method="post">
         <input name="nickname" placeholder="새 닉네임">
@@ -87,7 +93,7 @@ function showBox(id) {
     <h2>메모장</h2>
 
     <form action="/memo" method="post">
-        <textarea name="content" rows="8" placeholder="메모를 입력하세요">{% if memo %}{{ memo[2] }}{% endif %}</textarea>
+        <textarea name="content" rows="8" placeholder="메모를 입력하세요">{% if memo %}{{ memo["content"] }}{% endif %}</textarea>
         <button>메모 저장</button>
     </form>
 </section>
@@ -101,9 +107,10 @@ function showBox(id) {
     </form>
 
     {% for todo in todos %}
-        <div class="item">
-            {{ todo[2] }}
-            <a href="/todo/delete/{{ todo[0] }}">삭제</a>
+        <div class="item {% if todo['done'] == 1 %}done{% endif %}">
+            {{ todo["content"] }}
+            <a href="/todo/toggle/{{ todo['id'] }}">완료/취소</a>
+            <a href="/todo/delete/{{ todo['id'] }}">삭제</a>
         </div>
     {% endfor %}
 </section>
@@ -119,21 +126,29 @@ function showBox(id) {
 
     {% for post in posts %}
         <div class="post">
-            <h3>{{ post[1] }}</h3>
-            <p>{{ post[2] }}</p>
-            <small>작성자: {{ post[4] }}</small>
-            <p>좋아요: {{ post[3] }}</p>
-            <a href="/post/like/{{ post[0] }}">좋아요</a>
+            <h3>{{ post["title"] }}</h3>
+            <p>{{ post["content"] }}</p>
+            <small>작성자: {{ post["nickname"] }} / {{ post["created_at"] }}</small>
+            <p>좋아요: {{ post["likes"] }}</p>
 
-            <form action="/comment/add/{{ post[0] }}" method="post">
+            <a href="/post/like/{{ post['id'] }}">좋아요</a>
+
+            <form action="/report" method="post" class="mini-form">
+                <input type="hidden" name="target_type" value="post">
+                <input type="hidden" name="target_id" value="{{ post['id'] }}">
+                <input name="reason" placeholder="신고 이유">
+                <button>신고</button>
+            </form>
+
+            <form action="/comment/add/{{ post['id'] }}" method="post">
                 <input name="content" placeholder="댓글 입력">
                 <button>댓글 작성</button>
             </form>
 
             {% for comment in comments %}
-                {% if comment[1] == post[0] %}
+                {% if comment["post_id"] == post["id"] %}
                     <div class="comment">
-                        <b>{{ comment[3] }}</b>: {{ comment[2] }}
+                        <b>{{ comment["nickname"] }}</b>: {{ comment["content"] }}
                     </div>
                 {% endif %}
             {% endfor %}
@@ -143,7 +158,15 @@ function showBox(id) {
 
 <section id="chatApp" class="card app hidden">
     <h2>실시간 메시지방</h2>
-    <div id="chatBox" class="chat-box"></div>
+
+    <div id="chatBox" class="chat-box">
+        {% for chat in chats %}
+            <div class="chat-message">
+                <b>{{ chat["nickname"] }}</b>: {{ chat["message"] }}
+                <small>{{ chat["created_at"] }}</small>
+            </div>
+        {% endfor %}
+    </div>
 
     <input id="chatInput" placeholder="메시지 입력">
     <button onclick="sendMessage()">전송</button>
@@ -152,31 +175,37 @@ function showBox(id) {
 <section id="noticeApp" class="card app hidden">
     <h2>공지사항</h2>
 
+    {% if user["is_admin"] == 1 %}
     <form action="/notice/add" method="post">
         <input name="title" placeholder="공지 제목">
         <textarea name="content" placeholder="공지 내용"></textarea>
         <button>공지 작성</button>
     </form>
+    {% endif %}
 
     {% for notice in notices %}
         <div class="post">
-            <h3>{{ notice[1] }}</h3>
-            <p>{{ notice[2] }}</p>
+            <h3>{{ notice["title"] }}</h3>
+            <p>{{ notice["content"] }}</p>
+            <small>{{ notice["created_at"] }}</small>
         </div>
     {% endfor %}
 </section>
 
 <section id="statsApp" class="card app hidden">
     <h2>사이트 통계</h2>
-
-    <div class="item">회원 수: {{ user_count }}</div>
-    <div class="item">게시글 수: {{ post_count }}</div>
-    <div class="item">댓글 수: {{ comment_count }}</div>
+    <div class="stats-grid">
+        <div>회원 수<br><b>{{ stats["users"] }}</b></div>
+        <div>게시글 수<br><b>{{ stats["posts"] }}</b></div>
+        <div>댓글 수<br><b>{{ stats["comments"] }}</b></div>
+        <div>할 일 수<br><b>{{ stats["todos"] }}</b></div>
+        <div>채팅 수<br><b>{{ stats["chats"] }}</b></div>
+        <div>신고 수<br><b>{{ stats["reports"] }}</b></div>
+    </div>
 </section>
 
 <section id="calcApp" class="card app hidden">
     <h2>계산기</h2>
-
     <input id="calcInput" placeholder="예: 10 + 20 * 3">
     <button onclick="calculate()">계산</button>
     <h3 id="calcResult"></h3>
@@ -184,7 +213,6 @@ function showBox(id) {
 
 <section id="gameApp" class="card app hidden">
     <h2>숫자 맞추기 게임</h2>
-
     <p>1부터 100까지 숫자를 맞춰보세요.</p>
     <input id="guessInput" type="number">
     <button onclick="guess()">확인</button>
@@ -195,10 +223,7 @@ function showBox(id) {
 
 <script>
 function showApp(id) {
-    document.querySelectorAll(".app").forEach(function(app) {
-        app.classList.add("hidden");
-    });
-
+    document.querySelectorAll(".app").forEach(app => app.classList.add("hidden"));
     document.getElementById(id).classList.remove("hidden");
 }
 
@@ -225,7 +250,6 @@ function guess() {
 }
 
 const socket = io();
-const nickname = "{{ user[3] }}";
 
 function sendMessage() {
     const input = document.getElementById("chatInput");
@@ -233,7 +257,6 @@ function sendMessage() {
     if (input.value.trim() === "") return;
 
     socket.send({
-        nickname: nickname,
         message: input.value
     });
 
@@ -248,6 +271,7 @@ socket.on("message", function(data) {
     chatBox.innerHTML += `
         <div class="chat-message">
             <b>${data.nickname}</b>: ${data.message}
+            <small>${data.time}</small>
         </div>
     `;
 
